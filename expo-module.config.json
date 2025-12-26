@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["OpuslibModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.opuslib.OpuslibModule"]
+  }
+}
