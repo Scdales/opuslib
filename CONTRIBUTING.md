@@ -118,7 +118,7 @@ opuslib/
 │   └── OpusCWrapper.m # Objective-C wrapper for Opus CTL
 ├── android/           # Android native module
 │   └── src/main/      # Kotlin/Java source
-├── opus-1.6/          # Vendored Opus 1.6 source
+├── opus-1.6.1/        # Vendored Opus 1.6.1 source
 └── example/           # Example React Native app
 ```
 

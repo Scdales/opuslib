@@ -1,11 +1,12 @@
 # opuslib
 
-**Opus 1.6 audio encoding for React Native and Expo**
+**Opus 1.6.1 audio encoding for React Native and Expo**
 
-Real-time audio capture and encoding using the latest Opus 1.6 codec, built from source with full native integration for iOS and Android.
+Real-time audio capture and encoding using the latest Opus 1.6.1 codec, built from source with full native integration for iOS and Android.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![npm version](https://badge.fury.io/js/opuslib.svg)](https://badge.fury.io/js/opuslib)
+[![npm version](https://img.shields.io/npm/v/opuslib.svg)](https://www.npmjs.com/package/opuslib)
+[![npm downloads](https://img.shields.io/npm/dm/opuslib.svg)](https://www.npmjs.com/package/opuslib)
+[![License: MIT](https://img.shields.io/npm/l/opuslib.svg)](https://opensource.org/licenses/MIT)
 
 ---
 ## Story
@@ -16,7 +17,7 @@ Created as I had a need for real-time voice communication in a React Native app.
 
 ## Features
 
-- **Opus 1.6** - Latest codec version compiled from the [official source](https://opus-codec.org/release/stable/2025/12/15/libopus-1_6.html)
+- **Opus 1.6.1** - Latest codec version compiled from the [official source](https://opus-codec.org/downloads/)
 - **Low Latency** - Real-time encoding with minimal overhead
 - **Native Performance** - Direct C/C++ integration, no JavaScript encoding
 - **High Quality** - 24kbps achieves excellent speech quality
@@ -25,7 +26,7 @@ Created as I had a need for real-time voice communication in a React Native app.
 - **Configurable** - Bitrate, sample rate, frame size
 - **Event-Based** - Stream encoded audio chunks via events
 
-### Why Opus 1.6?
+### Why Opus 1.6.1?
 
 Opus is the gold standard for real-time voice applications:
 - **Better compression** than AAC, MP3, or Vorbis at low bitrates
@@ -143,6 +144,7 @@ interface AudioConfig {
   dredDuration?: number;            // Reserved for future DRED support (default: 0)
   enableAmplitudeEvents?: boolean;  // Enable amplitude monitoring (default: false)
   amplitudeEventInterval?: number;  // Amplitude update interval in ms (default: 16)
+  saveDebugAudio?: boolean;         // Save raw PCM to a file for debugging (development only)
 }
 ```
 
@@ -358,20 +360,20 @@ cd ..
 **iOS:**
 - AVAudioEngine for audio capture (48kHz PCM)
 - Custom resampler (48kHz → 16kHz)
-- Opus 1.6 encoder (native C via Swift)
+- Opus 1.6.1 encoder (native C via Swift)
 - Objective-C wrapper for CTL operations
 - Event emission via Expo modules
 
 **Android:**
 - AudioRecord for audio capture (16kHz PCM)
-- JNI wrapper for Opus 1.6 C library
+- JNI wrapper for Opus 1.6.1 C library
 - Background thread for recording loop
 - Kotlin coroutines for async operations
 - Event emission via Expo modules
 
 ### Opus Build Configuration
 
-The module compiles Opus 1.6 from source with the following CMake flags:
+The module compiles Opus 1.6.1 from source with the following CMake flags:
 
 ```cmake
 -DCMAKE_BUILD_TYPE=Release

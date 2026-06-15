@@ -10,9 +10,9 @@ import expo.modules.kotlin.records.Field
 import expo.modules.kotlin.records.Record
 
 /**
- * OpuslibModule - Expo module for Opus 1.6 audio encoding with DRED support
+ * OpuslibModule - Expo module for Opus 1.6.1 audio encoding with DRED support
  *
- * This module provides native audio capture and Opus 1.6 encoding with Deep Redundancy (DRED)
+ * This module provides native audio capture and Opus 1.6.1 encoding with Deep Redundancy (DRED)
  * for improved audio quality on lossy networks.
  */
 class OpuslibModule : Module() {

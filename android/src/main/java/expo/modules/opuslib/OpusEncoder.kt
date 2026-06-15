@@ -3,9 +3,9 @@ package expo.modules.opuslib
 import android.util.Log
 
 /**
- * OpusEncoder - Kotlin wrapper for Opus 1.6 with DRED support
+ * OpusEncoder - Kotlin wrapper for Opus 1.6.1 with DRED support
  *
- * This class provides a Kotlin interface to the Opus 1.6 C library via JNI
+ * This class provides a Kotlin interface to the Opus 1.6.1 C library via JNI
  * for encoding PCM audio to Opus format with Deep Redundancy (DRED) support.
  *
  * DRED embeds up to 1 second of recovery data in packet padding for improved
