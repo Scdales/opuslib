@@ -49,3 +49,6 @@ example/.expo/
 
 # Testing
 coverage/
+
+# Local-only agent guidance (never tracked)
+CLAUDE.md
