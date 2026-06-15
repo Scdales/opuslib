@@ -4,6 +4,8 @@ import type {
   AudioConfig,
   AudioChunkEvent,
   AmplitudeEvent,
+  AudioStartedEvent,
+  AudioEndEvent,
   ErrorEvent,
   Subscription,
 } from './Opuslib.types'
@@ -96,6 +98,14 @@ export default {
    *   websocket.send(event.data)
    * })
    *
+   * // Listen for session lifecycle
+   * Opuslib.addListener('audioStarted', (event) => {
+   *   console.log('Started; decoder pre-skip:', event.preSkip)
+   * })
+   * Opuslib.addListener('audioEnd', (event) => {
+   *   console.log(`Ended: ${event.totalPackets} packets in ${event.totalDuration}ms`)
+   * })
+   *
    * // Listen for errors
    * const errorSub = Opuslib.addListener('error', (event) => {
    *   console.error('Error:', event.message)
@@ -107,8 +117,20 @@ export default {
    * ```
    */
   addListener: ((
-    eventName: 'audioChunk' | 'amplitude' | 'error',
-    listener: (event: AudioChunkEvent | AmplitudeEvent | ErrorEvent) => void,
+    eventName:
+      | 'audioChunk'
+      | 'amplitude'
+      | 'audioStarted'
+      | 'audioEnd'
+      | 'error',
+    listener: (
+      event:
+        | AudioChunkEvent
+        | AmplitudeEvent
+        | AudioStartedEvent
+        | AudioEndEvent
+        | ErrorEvent,
+    ) => void,
   ): Subscription => (emitter as any).addListener(eventName, listener)) as {
     (
       eventName: 'audioChunk',
@@ -117,6 +139,14 @@ export default {
     (
       eventName: 'amplitude',
       listener: (event: AmplitudeEvent) => void,
+    ): Subscription
+    (
+      eventName: 'audioStarted',
+      listener: (event: AudioStartedEvent) => void,
+    ): Subscription
+    (
+      eventName: 'audioEnd',
+      listener: (event: AudioEndEvent) => void,
     ): Subscription
     (eventName: 'error', listener: (event: ErrorEvent) => void): Subscription
   },
@@ -130,6 +160,29 @@ export default {
   addAmplitudeListener: (
     listener: (event: AmplitudeEvent) => void,
   ): Subscription => (emitter as any).addListener('amplitude', listener),
+
+  /**
+   * Listen for the `audioStarted` event, emitted once when streaming begins.
+   * Carries the active config and the Opus encoder `preSkip` (lookahead) so a
+   * decoder knows how many samples to skip at the start of the stream.
+   *
+   * @param listener Event listener callback
+   * @returns Subscription object with remove() method
+   */
+  addAudioStartedListener: (
+    listener: (event: AudioStartedEvent) => void,
+  ): Subscription => (emitter as any).addListener('audioStarted', listener),
+
+  /**
+   * Listen for the `audioEnd` event, emitted once when streaming stops (after
+   * the final buffered audio has been flushed). Carries the session summary.
+   *
+   * @param listener Event listener callback
+   * @returns Subscription object with remove() method
+   */
+  addAudioEndListener: (
+    listener: (event: AudioEndEvent) => void,
+  ): Subscription => (emitter as any).addListener('audioEnd', listener),
 
   /**
    * Listen for error events

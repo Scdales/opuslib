@@ -20,10 +20,13 @@ Created as I had a need for real-time voice communication in a React Native app.
 - **Opus 1.6.1** - Latest codec version compiled from the [official source](https://opus-codec.org/downloads/)
 - **Low Latency** - Real-time encoding with minimal overhead
 - **Native Performance** - Direct C/C++ integration, no JavaScript encoding
+- **Thread-safe encoding** - Capture and Opus encoding run on separate threads, so the real-time audio thread is never blocked
+- **Audio level metering** - Optional per-frame level (0.0–1.0) via `enableAudioLevel`
+- **Lifecycle events** - `audioStarted` / `audioEnd` with session metadata, plus flush-on-stop so no trailing audio is lost
 - **High Quality** - 24kbps achieves excellent speech quality
 - **Cross-Platform** - iOS and Android with a consistent API
 - **Zero Dependencies** - Self-contained with vendored Opus source
-- **Configurable** - Bitrate, sample rate, frame size
+- **Configurable** - Bitrate, sample rate, frame size, frame batching
 - **Event-Based** - Stream encoded audio chunks via events
 
 ### Why Opus 1.6.1?
@@ -141,12 +144,24 @@ interface AudioConfig {
   bitrate: number;                  // Target bitrate in bits/second (e.g., 24000)
   frameSize: number;                // Frame duration in ms (2.5, 5, 10, 20, 40, 60)
   packetDuration: number;           // Packet duration in ms (multiple of frameSize)
+  framesPerCallback?: number;       // Opus frames batched per audioChunk event (default: 1)
   dredDuration?: number;            // Reserved for future DRED support (default: 0)
   enableAmplitudeEvents?: boolean;  // Enable amplitude monitoring (default: false)
   amplitudeEventInterval?: number;  // Amplitude update interval in ms (default: 16)
+  enableAudioLevel?: boolean;       // Per-frame audio level (0.0-1.0) on each OpusFrame (default: false)
   saveDebugAudio?: boolean;         // Save raw PCM to a file for debugging (development only)
+  iosAudioSession?: {               // iOS AVAudioSession config (iOS only; ignored elsewhere)
+    category: 'record' | 'playAndRecord' | 'playback' | 'ambient';
+    mode: 'default' | 'voiceChat' | 'measurement' | 'spokenAudio';
+    options?: Array<'mixWithOthers' | 'defaultToSpeaker' | 'allowBluetooth' | 'allowAirPlay' | 'allowBluetoothA2DP'>;
+  };
 }
 ```
+
+> **Backward compatibility:** `framesPerCallback`, `enableAudioLevel`, and
+> `iosAudioSession` are all optional. Omitting them preserves the previous
+> behavior (one Opus packet per `audioChunk`, no level metering, default iOS
+> recording session).
 
 **Recommended Settings for Speech:**
 ```typescript
@@ -189,18 +204,89 @@ Emitted when an encoded Opus packet is ready.
 
 ```typescript
 Opuslib.addListener('audioChunk', (event: AudioChunkEvent) => {
-  // event.data: ArrayBuffer - Raw Opus packet (ready to send/save)
+  // event.data: ArrayBuffer - First frame's Opus packet (back-compat; = frames[0].data)
+  // event.frames: OpusFrame[] - Independent Opus packets (one per encoded frame)
   // event.timestamp: number - Capture timestamp in milliseconds
-  // event.sequenceNumber: number - Packet sequence number (starts at 0)
+  // event.sequenceNumber: number - Event sequence number (starts at 0)
+  // event.duration: number - Total duration in ms (frameSize * frameCount)
+  // event.frameCount: number - Number of frames in this event
+
+  // Each frame is an independent, decodable Opus packet:
+  for (const frame of event.frames) {
+    websocket.send(frame.data);
+    // frame.audioLevel?: number - present only when enableAudioLevel is true
+  }
 });
 ```
 
 **Event Data:**
 ```typescript
+interface OpusFrame {
+  data: ArrayBuffer;         // Independent Opus packet (one opus_encode() output, own TOC byte)
+  audioLevel?: number;       // Per-frame level 0.0-1.0 (only when enableAudioLevel is true)
+}
+
 interface AudioChunkEvent {
-  data: ArrayBuffer;         // Raw Opus-encoded audio packet
+  data: ArrayBuffer;         // First frame's packet — kept for backward compatibility (= frames[0].data)
+  frames: OpusFrame[];       // Independent Opus packets (single entry unless framesPerCallback > 1)
   timestamp: number;         // Milliseconds since epoch
-  sequenceNumber: number;    // Incrementing packet counter
+  sequenceNumber: number;    // Incrementing event counter
+  duration: number;          // Total duration in ms (frameSize * frameCount)
+  frameCount: number;        // Number of Opus frames (= frames.length)
+}
+```
+
+> With the default `framesPerCallback` of 1, `frames` has a single entry and
+> `data === frames[0].data`, so existing `event.data` consumers are unaffected.
+> Frames are **never** concatenated — each is independently decodable.
+
+---
+
+#### `audioStarted`
+
+Emitted once when streaming starts. Carries the active config and the Opus
+encoder `preSkip` (lookahead) so a decoder knows how many samples to skip at the
+beginning of the stream.
+
+```typescript
+Opuslib.addAudioStartedListener((event: AudioStartedEvent) => {
+  console.log(`Started: ${event.sampleRate}Hz, preSkip=${event.preSkip}`);
+});
+// or: Opuslib.addListener('audioStarted', (event) => { ... })
+```
+
+**Event Data:**
+```typescript
+interface AudioStartedEvent {
+  timestamp: number;   // Milliseconds since epoch
+  sampleRate: number;  // Actual sample rate in Hz
+  channels: number;    // Number of channels
+  bitrate: number;     // Configured bitrate in bits/second
+  frameSize: number;   // Frame duration in milliseconds
+  preSkip: number;     // Encoder lookahead in samples (decoder should skip these)
+}
+```
+
+---
+
+#### `audioEnd`
+
+Emitted once when streaming stops, after the final buffered audio has been
+flushed (the trailing partial frame is padded with silence so no audio is lost).
+
+```typescript
+Opuslib.addAudioEndListener((event: AudioEndEvent) => {
+  console.log(`Ended: ${event.totalDuration}ms, ${event.totalPackets} packets`);
+});
+// or: Opuslib.addListener('audioEnd', (event) => { ... })
+```
+
+**Event Data:**
+```typescript
+interface AudioEndEvent {
+  timestamp: number;       // Milliseconds since epoch
+  totalDuration: number;   // Total session duration in milliseconds
+  totalPackets: number;    // Total audioChunk events emitted during the session
 }
 ```
 
@@ -254,7 +340,39 @@ interface ErrorEvent {
 ### iOS
 
 - **Minimum iOS Version:** 15.1+
-- **Audio Session:** Automatically configured for recording
+- **Audio Session:** Defaults to the `record` category with `measurement` mode (pure recording, system audio processing disabled). Override it per-session with the optional `iosAudioSession` config — e.g. for simultaneous playback or Bluetooth/speaker routing:
+  ```typescript
+  await Opuslib.startStreaming({
+    sampleRate: 24000, channels: 1, bitrate: 24000, frameSize: 20, packetDuration: 100,
+    iosAudioSession: {
+      category: 'playAndRecord',           // record + play at the same time
+      mode: 'default',                     // enable AGC / echo cancellation
+      options: ['defaultToSpeaker', 'allowBluetooth'],
+    },
+  });
+  ```
+
+  | `category` | Behavior |
+  |------------|----------|
+  | `record` | Pure recording (default) |
+  | `playAndRecord` | Record and play simultaneously |
+  | `playback` | Playback only |
+  | `ambient` | Mix with other audio without interrupting it |
+
+  | `mode` | Behavior |
+  |--------|----------|
+  | `measurement` | Disable system audio processing (default) |
+  | `default` | Enable AGC, echo cancellation, etc. |
+  | `voiceChat` | Optimized for voice calls |
+  | `spokenAudio` | Optimized for spoken content |
+
+  | `options[]` | Behavior |
+  |-------------|----------|
+  | `mixWithOthers` | Allow mixing with other audio apps |
+  | `defaultToSpeaker` | Route to speaker instead of earpiece |
+  | `allowBluetooth` | Allow Bluetooth HFP devices |
+  | `allowAirPlay` | Allow AirPlay output |
+  | `allowBluetoothA2DP` | Allow Bluetooth A2DP (high-quality audio) |
 - **Permissions:** Add to `app.json`:
   ```json
   {
@@ -355,20 +473,33 @@ cd ..
 
 ## Technical Details
 
-### Architecture
+Capture and encoding run on **separate threads**. The capture thread only reads
+PCM, converts it, and copies the samples onto a dedicated serial encoding
+thread; all Opus encoder state and `opus_encode()` calls happen there. This
+keeps the real-time audio thread unblocked and avoids encoding on it.
+
+```
+Capture thread                      Encoding thread (serial)
+  |  read PCM (AVAudioEngine / AudioRecord)
+  |  convert + copy ----- post ----> append to pending buffer
+  |                                  while (>= one frame) opus_encode() -> frame
+  |                                  per-frame audioLevel (if enabled)
+  |                                  batch framesPerCallback -> emit audioChunk
+  |  (stop) ------------- flush ---> pad silence + encode tail -> emit audioEnd
+```
 
 **iOS:**
 - AVAudioEngine for audio capture (48kHz PCM)
 - Custom resampler (48kHz → 16kHz)
+- Dedicated serial `DispatchQueue` for Opus encoding and event dispatch
 - Opus 1.6.1 encoder (native C via Swift)
 - Objective-C wrapper for CTL operations
 - Event emission via Expo modules
 
 **Android:**
 - AudioRecord for audio capture (16kHz PCM)
+- Dedicated `HandlerThread` for Opus encoding and event dispatch
 - JNI wrapper for Opus 1.6.1 C library
-- Background thread for recording loop
-- Kotlin coroutines for async operations
 - Event emission via Expo modules
 
 ### Opus Build Configuration

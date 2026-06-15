@@ -23,7 +23,7 @@ class OpuslibModule : Module() {
     Name("Opuslib")
 
     // Events
-    Events("audioChunk", "amplitude", "error")
+    Events("audioChunk", "amplitude", "audioStarted", "audioEnd", "error")
 
     // Start streaming method
     AsyncFunction("startStreaming") { config: AudioConfig ->
@@ -79,13 +79,43 @@ class OpuslibModule : Module() {
     val manager = AudioRecordManager(context, config)
     android.util.Log.d(TAG, "✅ AudioRecordManager created")
 
-    // Set up event callbacks
+    // Set up event callbacks — audioStarted/audioEnd come from the encoding thread
     android.util.Log.d(TAG, "🔗 Setting up event callbacks...")
-    manager.setOnAudioChunk { data, timestamp, sequenceNumber ->
+    manager.setOnAudioChunk { frames, timestamp, sequenceNumber, duration, frameCount ->
+      // Each frame is an independent Opus packet wrapped in { data, audioLevel? }.
+      val frameObjects = frames.map { frame ->
+        val obj = mutableMapOf<String, Any>("data" to frame.data)
+        frame.audioLevel?.let { obj["audioLevel"] = it }
+        obj
+      }
+      // `data` is kept for backward compatibility: the FIRST frame's Opus packet,
+      // sent in the same ByteArray representation existing consumers already read.
       sendEvent("audioChunk", mapOf(
-        "data" to data,
+        "data" to frames.first().data,
+        "frames" to frameObjects,
         "timestamp" to timestamp,
-        "sequenceNumber" to sequenceNumber
+        "sequenceNumber" to sequenceNumber,
+        "duration" to duration,
+        "frameCount" to frameCount
+      ))
+    }
+
+    manager.setOnStarted { timestamp, sampleRate, channels, bitrate, frameSize, preSkip ->
+      sendEvent("audioStarted", mapOf(
+        "timestamp" to timestamp,
+        "sampleRate" to sampleRate,
+        "channels" to channels,
+        "bitrate" to bitrate,
+        "frameSize" to frameSize,
+        "preSkip" to preSkip
+      ))
+    }
+
+    manager.setOnEnd { timestamp, totalDuration, totalPackets ->
+      sendEvent("audioEnd", mapOf(
+        "timestamp" to timestamp,
+        "totalDuration" to totalDuration,
+        "totalPackets" to totalPackets
       ))
     }
 
@@ -121,6 +151,7 @@ class OpuslibModule : Module() {
       return
     }
 
+    // stop() flushes the encoding thread and emits audioEnd before tearing down.
     audioRecordManager?.stop()
     audioRecordManager = null
     isStreaming = false
@@ -169,8 +200,15 @@ class AudioConfig : Record {
   @Field
   var frameSize: Double = 20.0
 
+  // Legacy field, still accepted from existing callers. Superseded by
+  // framesPerCallback; kept so existing configs continue to deserialize.
   @Field
   var packetDuration: Double = 20.0
+
+  // Number of independent Opus frames batched into one audioChunk event.
+  // Defaults to 1 to match the previous one-frame-per-event behavior.
+  @Field
+  var framesPerCallback: Int = 1
 
   @Field
   var dredDuration: Int = 100  // NEW: DRED recovery duration in ms
@@ -180,6 +218,10 @@ class AudioConfig : Record {
 
   @Field
   var amplitudeEventInterval: Double = 16.0
+
+  // Per-frame audio level (RMS-derived, 0.0..1.0) attached to each frame.
+  @Field
+  var enableAudioLevel: Boolean = false
 
   @Field
   var saveDebugAudio: Boolean = false

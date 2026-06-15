@@ -56,6 +56,14 @@ NS_ASSUME_NONNULL_BEGIN
  */
 + (int)setDtx:(void *)encoder dtx:(int)dtx;
 
+/**
+ * Get encoder lookahead (pre-skip samples)
+ * @param encoder Pointer to OpusEncoder (as void*)
+ * @param lookahead Output pointer for lookahead value
+ * @return OPUS_OK on success, or negative error code
+ */
++ (int)getLookahead:(void *)encoder lookahead:(int *)lookahead;
+
 @end
 
 NS_ASSUME_NONNULL_END

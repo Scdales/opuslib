@@ -27,4 +27,8 @@
     return opus_encoder_ctl((OpusEncoder *)encoder, OPUS_SET_DTX(dtx));
 }
 
++ (int)getLookahead:(void *)encoder lookahead:(int *)lookahead {
+    return opus_encoder_ctl((OpusEncoder *)encoder, OPUS_GET_LOOKAHEAD(lookahead));
+}
+
 @end

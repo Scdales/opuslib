@@ -134,6 +134,33 @@ describe('OpuslibModule (native wrapper)', () => {
       expect(expoMock.__addListener).toHaveBeenCalledWith('error', listener)
     })
 
+    it('supports the audioStarted and audioEnd lifecycle events through addListener', () => {
+      const started = jest.fn()
+      const ended = jest.fn()
+      Opuslib.addListener('audioStarted', started)
+      Opuslib.addListener('audioEnd', ended)
+      expect(expoMock.__addListener).toHaveBeenCalledWith(
+        'audioStarted',
+        started,
+      )
+      expect(expoMock.__addListener).toHaveBeenCalledWith('audioEnd', ended)
+    })
+
+    it('maps addAudioStartedListener to the "audioStarted" event', () => {
+      const listener = jest.fn()
+      Opuslib.addAudioStartedListener(listener)
+      expect(expoMock.__addListener).toHaveBeenCalledWith(
+        'audioStarted',
+        listener,
+      )
+    })
+
+    it('maps addAudioEndListener to the "audioEnd" event', () => {
+      const listener = jest.fn()
+      Opuslib.addAudioEndListener(listener)
+      expect(expoMock.__addListener).toHaveBeenCalledWith('audioEnd', listener)
+    })
+
     it('returns a subscription whose remove() is callable', () => {
       const sub = Opuslib.addErrorListener(jest.fn())
       sub.remove()

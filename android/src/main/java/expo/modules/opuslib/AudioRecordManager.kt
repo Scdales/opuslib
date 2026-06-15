@@ -6,19 +6,16 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.util.Log
 import java.io.File
-import java.io.FileOutputStream
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlin.concurrent.thread
 
 /**
- * AudioRecordManager - Manages AudioRecord for real-time audio capture with Opus 1.6.1 DRED
+ * AudioRecordManager - Manages AudioRecord for real-time audio capture.
  *
- * This class handles:
- * - AudioRecord setup and lifecycle
- * - Real-time PCM audio capture
- * - Opus 1.6.1 encoding with DRED support
- * - Background recording thread management
+ * This class is responsible only for audio capture: it owns the AudioRecord
+ * lifecycle and runs the PCM read loop. All Opus 1.6.1 encoding is delegated to
+ * AudioProcessor, which runs on a separate dedicated encoding thread. The
+ * capture thread calls processor.pushSamples(), which copies the PCM and posts
+ * it to the encoding thread, so the read loop never blocks on encoding.
  */
 class AudioRecordManager(
   private val context: Context,
@@ -32,27 +29,20 @@ class AudioRecordManager(
   private var audioRecord: AudioRecord? = null
   private var recordingThread: Thread? = null
 
-  // Opus encoder
-  private var opusEncoder: OpusEncoder? = null
+  // Encoding processor (owns the encoder, runs on a separate HandlerThread)
+  private var processor: AudioProcessor? = null
 
   // State
   private var isRecording = false
   private var isPaused = false
-  private var sequenceNumber = 0
   private var loggedFirstBuffer = false
 
-  // Frame accumulation for packet duration
-  private val frameBuffer = mutableListOf<ShortArray>()
-  private val framesPerPacket: Int = (config.packetDuration / config.frameSize).toInt()
-
   // Event callbacks
-  private var onAudioChunk: ((ByteArray, Double, Int) -> Unit)? = null
+  private var onAudioChunk: ((List<EncodedFrame>, Double, Int, Double, Int) -> Unit)? = null
+  private var onStarted: ((timestamp: Double, sampleRate: Int, channels: Int, bitrate: Int, frameSize: Double, preSkip: Int) -> Unit)? = null
+  private var onEnd: ((timestamp: Double, totalDuration: Double, totalPackets: Int) -> Unit)? = null
   private var onAmplitude: ((Float, Float, Double) -> Unit)? = null
   private var onError: ((Exception) -> Unit)? = null
-
-  // Debug file output
-  private var pcmFileOutputStream: FileOutputStream? = null
-  private var pcmFile: File? = null
 
   // MARK: - Public Methods
 
@@ -60,16 +50,6 @@ class AudioRecordManager(
     if (isRecording) {
       throw AudioStreamException("ALREADY_STREAMING", "Already recording")
     }
-
-    // Create Opus encoder with DRED support
-    val dredDuration = config.dredDuration
-    opusEncoder = OpusEncoder(
-      sampleRate = config.sampleRate,
-      channels = config.channels,
-      bitrate = config.bitrate,
-      frameSizeMs = config.frameSize,
-      dredDurationMs = dredDuration
-    )
 
     // Calculate buffer size
     val samplesPerFrame = (config.sampleRate * config.frameSize / 1000.0).toInt()
@@ -118,33 +98,48 @@ class AudioRecordManager(
       )
     }
 
-    // Create debug output file if enabled
-    if (config.saveDebugAudio) {
-      try {
-        val timestamp = System.currentTimeMillis()
-        pcmFile = File(context.filesDir, "debug_pcm_$timestamp.raw")
-        pcmFileOutputStream = FileOutputStream(pcmFile)
-        Log.d(TAG, "Debug PCM file created: ${pcmFile?.absolutePath}")
-      } catch (e: Exception) {
-        Log.e(TAG, "Failed to create debug file: ${e.message}")
-      }
+    // Create and start AudioProcessor (encoding thread). It owns the encoder and
+    // emits audioStarted (with preSkip) once the encoder is ready.
+    val proc = AudioProcessor(config)
+    proc.setOnAudioChunk { frames, timestamp, seq, duration, frameCount ->
+      onAudioChunk?.invoke(frames, timestamp, seq, duration, frameCount)
     }
+    proc.setOnStarted { timestamp, sampleRate, channels, bitrate, frameSize, preSkip ->
+      onStarted?.invoke(timestamp, sampleRate, channels, bitrate, frameSize, preSkip)
+    }
+    proc.setOnEnd { timestamp, totalDuration, totalPackets ->
+      onEnd?.invoke(timestamp, totalDuration, totalPackets)
+    }
+
+    // Debug PCM file (written on the encoding thread, per frame)
+    val debugFile = if (config.saveDebugAudio) {
+      val timestamp = System.currentTimeMillis()
+      File(context.filesDir, "debug_pcm_$timestamp.raw").also {
+        Log.d(TAG, "Debug PCM file: ${it.absolutePath}")
+      }
+    } else null
+
+    proc.start(debugFile)
+    processor = proc
 
     // Start recording
     try {
       record.startRecording()
     } catch (e: Exception) {
+      // Tear down the encoding thread we just started before bailing out
+      proc.flushAndStop()
+      processor = null
       throw AudioStreamException("AUDIO_RECORD_ERROR", "Failed to start recording: ${e.message}")
     }
 
     isRecording = true
 
-    // Start recording thread
+    // Start capture thread — only reads PCM and pushes to the processor
     recordingThread = thread(start = true, name = "AudioRecordThread") {
-      recordAudioLoop(record, samplesPerFrame)
+      captureLoop(record, samplesPerFrame)
     }
 
-    Log.d(TAG, "Started recording: ${config.sampleRate}Hz, ${config.channels}ch, DRED: ${dredDuration}ms")
+    Log.d(TAG, "Started recording: ${config.sampleRate}Hz, ${config.channels}ch, DRED: ${config.dredDuration}ms")
   }
 
   fun stop() {
@@ -154,7 +149,7 @@ class AudioRecordManager(
 
     isRecording = false
 
-    // Stop recording
+    // Stop AudioRecord
     audioRecord?.let { record ->
       try {
         if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
@@ -165,26 +160,20 @@ class AudioRecordManager(
       }
     }
 
-    // Wait for recording thread to finish
+    // Wait for capture thread to finish
     recordingThread?.join(1000)
     recordingThread = null
 
-    // Release resources
+    // Flush and stop the encoding thread (synchronous — drains remaining
+    // samples, pads the final partial frame with silence, emits audioEnd).
+    processor?.flushAndStop()
+    processor = null
+
+    // Release AudioRecord
     audioRecord?.release()
     audioRecord = null
 
-    opusEncoder?.destroy()
-    opusEncoder = null
-
-    frameBuffer.clear()
-    sequenceNumber = 0
-
-    // Close debug file
-    pcmFileOutputStream?.close()
-    pcmFileOutputStream = null
-    if (pcmFile != null) {
-      Log.d(TAG, "Closed PCM debug file: ${pcmFile?.absolutePath}")
-    }
+    loggedFirstBuffer = false
 
     Log.d(TAG, "Stopped recording")
   }
@@ -201,8 +190,16 @@ class AudioRecordManager(
 
   // MARK: - Event Handlers
 
-  fun setOnAudioChunk(callback: (ByteArray, Double, Int) -> Unit) {
+  fun setOnAudioChunk(callback: (List<EncodedFrame>, Double, Int, Double, Int) -> Unit) {
     this.onAudioChunk = callback
+  }
+
+  fun setOnStarted(callback: (timestamp: Double, sampleRate: Int, channels: Int, bitrate: Int, frameSize: Double, preSkip: Int) -> Unit) {
+    this.onStarted = callback
+  }
+
+  fun setOnEnd(callback: (timestamp: Double, totalDuration: Double, totalPackets: Int) -> Unit) {
+    this.onEnd = callback
   }
 
   fun setOnAmplitude(callback: (Float, Float, Double) -> Unit) {
@@ -213,12 +210,12 @@ class AudioRecordManager(
     this.onError = callback
   }
 
-  // MARK: - Private Methods
+  // MARK: - Capture thread (only reads PCM, no encoding)
 
-  private fun recordAudioLoop(record: AudioRecord, samplesPerFrame: Int) {
+  private fun captureLoop(record: AudioRecord, samplesPerFrame: Int) {
     val buffer = ShortArray(samplesPerFrame)
 
-    Log.d(TAG, "Recording thread started, frame size: $samplesPerFrame samples")
+    Log.d(TAG, "Capture thread started, frame size: $samplesPerFrame samples")
 
     while (isRecording) {
       try {
@@ -232,7 +229,7 @@ class AudioRecordManager(
         }
 
         if (samplesRead == 0) {
-          // No data available, continue
+          // No data available, wait briefly and retry
           Thread.sleep(10)
           continue
         }
@@ -248,99 +245,19 @@ class AudioRecordManager(
           continue
         }
 
-        // Write to debug file if enabled
-        pcmFileOutputStream?.let { fos ->
-          val byteBuffer = ByteBuffer.allocate(samplesRead * 2)
-          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-          for (i in 0 until samplesRead) {
-            byteBuffer.putShort(buffer[i])
-          }
-          fos.write(byteBuffer.array())
-        }
-
-        // Process the buffer
-        processBuffer(buffer.copyOf(samplesRead))
+        // Copy + post to the encoding thread (never blocks the capture loop)
+        processor?.pushSamples(buffer, samplesRead)
 
       } catch (e: InterruptedException) {
-        Log.d(TAG, "Recording thread interrupted")
+        Log.d(TAG, "Capture thread interrupted")
         break
       } catch (e: Exception) {
-        Log.e(TAG, "Error in recording loop: ${e.message}", e)
+        Log.e(TAG, "Error in capture loop: ${e.message}", e)
         onError?.invoke(e)
         break
       }
     }
 
-    Log.d(TAG, "Recording thread stopped")
-  }
-
-  private fun processBuffer(pcmData: ShortArray) {
-    // Add to frame buffer
-    frameBuffer.add(pcmData)
-
-    // Calculate how many samples we need for one packet
-    val samplesPerPacket = (config.sampleRate * config.packetDuration / 1000.0).toInt()
-    val currentSampleCount = frameBuffer.sumOf { it.size }
-
-    // When we have enough samples for a packet, encode and send
-    if (currentSampleCount >= samplesPerPacket) {
-      encodeAndSendPacket()
-    }
-  }
-
-  private fun encodeAndSendPacket() {
-    val encoder = opusEncoder ?: return
-
-    // Flatten frame buffer into continuous PCM data
-    val pcmData = ShortArray(frameBuffer.sumOf { it.size })
-    var offset = 0
-    for (frame in frameBuffer) {
-      frame.copyInto(pcmData, offset)
-      offset += frame.size
-    }
-
-    // Calculate samples per frame
-    val samplesPerFrame = (config.sampleRate * config.frameSize / 1000.0).toInt()
-
-    // We should only encode when we have at least one frame
-    if (pcmData.size < samplesPerFrame) {
-      return
-    }
-
-    // Take only ONE frame worth of samples
-    val frameData = pcmData.copyOfRange(0, samplesPerFrame)
-
-    // Encode this single frame to Opus (with DRED padding if enabled)
-    val opusData = try {
-      encoder.encode(frameData, samplesPerFrame)
-    } catch (e: Exception) {
-      Log.e(TAG, "Failed to encode Opus packet: ${e.message}")
-      frameBuffer.clear()
-      return
-    }
-
-    if (opusData == null || opusData.isEmpty()) {
-      Log.w(TAG, "Failed to encode Opus packet (null or empty)")
-      frameBuffer.clear()
-      return
-    }
-
-    // Calculate timestamp in milliseconds
-    val timestampMs = System.currentTimeMillis().toDouble()
-
-    // Emit audioChunk event with Opus packet (may be larger due to DRED)
-    onAudioChunk?.invoke(opusData, timestampMs, sequenceNumber)
-
-    sequenceNumber++
-
-    // Keep any remaining samples for next packet
-    val remainingSamples = pcmData.size - samplesPerFrame
-    if (remainingSamples > 0) {
-      val remaining = pcmData.copyOfRange(samplesPerFrame, pcmData.size)
-      frameBuffer.clear()
-      frameBuffer.add(remaining)
-    } else {
-      frameBuffer.clear()
-    }
+    Log.d(TAG, "Capture thread stopped")
   }
 }

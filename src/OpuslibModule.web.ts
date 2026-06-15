@@ -39,6 +39,14 @@ export default {
     remove: () => {},
   }),
 
+  addAudioStartedListener: () => ({
+    remove: () => {},
+  }),
+
+  addAudioEndListener: () => ({
+    remove: () => {},
+  }),
+
   addErrorListener: () => ({
     remove: () => {},
   }),

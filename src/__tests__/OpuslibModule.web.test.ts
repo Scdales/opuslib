@@ -33,6 +33,8 @@ describe('OpuslibModule (web stub)', () => {
     const subscriptions = [
       OpuslibWeb.addListener(),
       OpuslibWeb.addAmplitudeListener(),
+      OpuslibWeb.addAudioStartedListener(),
+      OpuslibWeb.addAudioEndListener(),
       OpuslibWeb.addErrorListener(),
     ]
     for (const sub of subscriptions) {
