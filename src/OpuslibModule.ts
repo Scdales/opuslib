@@ -1,5 +1,12 @@
 import { NativeModule, requireNativeModule, EventEmitter } from 'expo'
-import type { AudioConfig, AudioChunkEvent, AmplitudeEvent, ErrorEvent, Subscription } from './Opuslib.types'
+
+import type {
+  AudioConfig,
+  AudioChunkEvent,
+  AmplitudeEvent,
+  ErrorEvent,
+  Subscription,
+} from './Opuslib.types'
 
 /**
  * Opuslib Native Module Interface
@@ -101,10 +108,16 @@ export default {
    */
   addListener: ((
     eventName: 'audioChunk' | 'amplitude' | 'error',
-    listener: (event: AudioChunkEvent | AmplitudeEvent | ErrorEvent) => void
+    listener: (event: AudioChunkEvent | AmplitudeEvent | ErrorEvent) => void,
   ): Subscription => (emitter as any).addListener(eventName, listener)) as {
-    (eventName: 'audioChunk', listener: (event: AudioChunkEvent) => void): Subscription
-    (eventName: 'amplitude', listener: (event: AmplitudeEvent) => void): Subscription
+    (
+      eventName: 'audioChunk',
+      listener: (event: AudioChunkEvent) => void,
+    ): Subscription
+    (
+      eventName: 'amplitude',
+      listener: (event: AmplitudeEvent) => void,
+    ): Subscription
     (eventName: 'error', listener: (event: ErrorEvent) => void): Subscription
   },
 
@@ -115,7 +128,7 @@ export default {
    * @returns Subscription object with remove() method
    */
   addAmplitudeListener: (
-    listener: (event: AmplitudeEvent) => void
+    listener: (event: AmplitudeEvent) => void,
   ): Subscription => (emitter as any).addListener('amplitude', listener),
 
   /**
@@ -124,7 +137,6 @@ export default {
    * @param listener Event listener callback
    * @returns Subscription object with remove() method
    */
-  addErrorListener: (
-    listener: (event: ErrorEvent) => void
-  ): Subscription => (emitter as any).addListener('error', listener),
+  addErrorListener: (listener: (event: ErrorEvent) => void): Subscription =>
+    (emitter as any).addListener('error', listener),
 }

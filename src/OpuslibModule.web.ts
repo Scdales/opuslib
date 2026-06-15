@@ -8,30 +8,38 @@ import type { AudioConfig } from './Opuslib.types'
  */
 export default {
   startStreaming: async (config: AudioConfig): Promise<void> => {
-    throw new Error('Opuslib is not supported on web platform. Use iOS or Android.')
+    throw new Error(
+      'Opuslib is not supported on web platform. Use iOS or Android.',
+    )
   },
 
   stopStreaming: async (): Promise<void> => {
-    throw new Error('Opuslib is not supported on web platform. Use iOS or Android.')
+    throw new Error(
+      'Opuslib is not supported on web platform. Use iOS or Android.',
+    )
   },
 
   pauseStreaming: (): void => {
-    throw new Error('Opuslib is not supported on web platform. Use iOS or Android.')
+    throw new Error(
+      'Opuslib is not supported on web platform. Use iOS or Android.',
+    )
   },
 
   resumeStreaming: (): void => {
-    throw new Error('Opuslib is not supported on web platform. Use iOS or Android.')
+    throw new Error(
+      'Opuslib is not supported on web platform. Use iOS or Android.',
+    )
   },
 
   addListener: () => ({
-    remove: () => {}
+    remove: () => {},
   }),
 
   addAmplitudeListener: () => ({
-    remove: () => {}
+    remove: () => {},
   }),
 
   addErrorListener: () => ({
-    remove: () => {}
+    remove: () => {},
   }),
 }
