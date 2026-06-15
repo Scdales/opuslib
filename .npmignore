@@ -12,3 +12,6 @@ __tests__
 /android/src/test/
 /android/build/
 /example/
+
+# Internal / maintainer-only material — not for the published package
+/docs/
