@@ -50,7 +50,7 @@ export default function App() {
       });
 
       setIsRecording(true);
-      console.log('Recording started with Opus 1.6 support');
+      console.log('Recording started with Opus 1.6.1 support');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       console.error('Failed to start recording:', err);
@@ -71,7 +71,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        <Text style={styles.header}>Opus 1.6 with DRED</Text>
+        <Text style={styles.header}>Opus 1.6.1 with DRED</Text>
         <Text style={styles.subtitle}>iOS Native Audio Encoding Example</Text>
 
         <View style={styles.section}>
@@ -116,7 +116,7 @@ export default function App() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About DRED</Text>
           <Text style={styles.infoText}>
-            Deep Redundancy (DRED) is an Opus 1.6 feature that embeds packet loss recovery data
+            Deep Redundancy (DRED) is an Opus 1.6.1 feature that embeds packet loss recovery data
             in padding. This example encodes live audio with 100ms of DRED recovery, allowing
             the decoder to reconstruct lost packets for improved quality on lossy networks.
           </Text>

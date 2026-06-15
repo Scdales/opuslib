@@ -10,13 +10,13 @@ real-time microphone capture and [Opus](https://opus-codec.org/) 1.6 audio
 encoding for React Native and Expo apps on iOS and Android.
 
 The defining characteristic of this package is that it **vendors the full Opus
-1.6 C source tree** (`opus-1.6/`) and **compiles it from source at install /
+1.6 C source tree** (`opus-1.6.1/`) and **compiles it from source at install /
 build time** on each platform. There is no precompiled binary and no runtime
 dependency on a system Opus library — the consuming app builds Opus as a static
 library as part of its native build.
 
 - **iOS:** the CocoaPods `prepare_command` in `ios/Opuslib.podspec` runs CMake
-  against `opus-1.6/`, builds `libopus.a` into `ios/opus-build/`, and links it
+  against `opus-1.6.1/`, builds `libopus.a` into `ios/opus-build/`, and links it
   statically. Audio is captured with `AVAudioEngine` at 48 kHz and resampled.
 - **Android:** `android/build.gradle` drives a CMake build
   (`android/src/main/cpp/CMakeLists.txt`) that compiles Opus via the NDK for
@@ -43,7 +43,7 @@ opuslib/
 ├── src/                  # TypeScript: public API + types (published as build/)
 ├── ios/                  # Swift module, Obj-C CTL helpers, podspec (source build)
 ├── android/              # Kotlin module + C++/JNI wrapper, CMake, gradle
-├── opus-1.6/             # Vendored Opus 1.6 source — compiled per platform
+├── opus-1.6.1/             # Vendored Opus 1.6 source — compiled per platform
 ├── example/              # Local Expo app for manual testing (NOT published)
 ├── build/                # Compiled TS output (generated; published, gitignored)
 ├── README.md             # User-facing documentation (published)
@@ -104,7 +104,7 @@ emit an `error` event rather than crashing.
 ## What gets published vs. what doesn't
 
 `.npmignore` controls the npm tarball. The published package deliberately
-**includes** the vendored `opus-1.6/` source (the build depends on it) along
+**includes** the vendored `opus-1.6.1/` source (the build depends on it) along
 with `src/`, `build/`, `ios/`, `android/`, the podspec, and user-facing docs.
 
 It deliberately **excludes**:
@@ -144,7 +144,7 @@ this checklist.
 
 To move to a newer Opus release:
 
-1. Replace the `opus-1.6/` tree with the new official source (and rename the
+1. Replace the `opus-1.6.1/` tree with the new official source (and rename the
    directory + every path that references it: podspec, `CMakeLists.txt`,
    gradle).
 2. Re-verify the CMake flags (`OPUS_DRED`, `OPUS_BUILD_SHARED_LIBRARY`,

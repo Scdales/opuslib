@@ -1,7 +1,7 @@
 /**
- * Opuslib - Opus 1.6 Audio Encoding with DRED Support
+ * Opuslib - Opus 1.6.1 Audio Encoding with DRED Support
  *
- * Native audio capture and Opus 1.6 encoding for React Native/Expo
+ * Native audio capture and Opus 1.6.1 encoding for React Native/Expo
  * with Deep Redundancy (DRED) for improved quality on lossy networks.
  *
  * @example

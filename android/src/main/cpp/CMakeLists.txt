@@ -6,13 +6,13 @@ project(opuslib)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Add Opus 1.6 library
+# Add Opus 1.6.1 library
 # Note: The path is relative to this CMakeLists.txt file
 # From: android/src/main/cpp/CMakeLists.txt
-# To:   opus-1.6/
-# Path: ../../../../opus-1.6
+# To:   opus-1.6.1/
+# Path: ../../../../opus-1.6.1
 add_subdirectory(
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../../../opus-1.6
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../../opus-1.6.1
   ${CMAKE_CURRENT_BINARY_DIR}/opus-build
 )
 
@@ -26,7 +26,7 @@ add_library(
 # Link libraries
 target_link_libraries(
   opuslib-jni
-  opus          # The Opus 1.6 library we just built
+  opus          # The Opus 1.6.1 library we just built
   android       # Android system library
   log           # Android logging
 )
@@ -35,5 +35,5 @@ target_link_libraries(
 target_include_directories(
   opuslib-jni
   PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../../../opus-1.6/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../../opus-1.6.1/include
 )

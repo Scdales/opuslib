@@ -12,12 +12,12 @@ import java.nio.ByteOrder
 import kotlin.concurrent.thread
 
 /**
- * AudioRecordManager - Manages AudioRecord for real-time audio capture with Opus 1.6 DRED
+ * AudioRecordManager - Manages AudioRecord for real-time audio capture with Opus 1.6.1 DRED
  *
  * This class handles:
  * - AudioRecord setup and lifecycle
  * - Real-time PCM audio capture
- * - Opus 1.6 encoding with DRED support
+ * - Opus 1.6.1 encoding with DRED support
  * - Background recording thread management
  */
 class AudioRecordManager(

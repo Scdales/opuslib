@@ -37,7 +37,7 @@ android {
     versionCode 1
     versionName "0.1.0"
 
-    // CMake configuration for Opus 1.6
+    // CMake configuration for Opus 1.6.1
     // Note: DRED disabled for Android due to architecture-specific DNN code
     externalNativeBuild {
       cmake {

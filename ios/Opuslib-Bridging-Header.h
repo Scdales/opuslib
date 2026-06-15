@@ -2,7 +2,7 @@
 //  Opuslib-Bridging-Header.h
 //  Opuslib
 //
-//  Swift/C bridging header for Opus 1.6 native module
+//  Swift/C bridging header for Opus 1.6.1 native module
 //
 
 #import "opus.h"

@@ -2,13 +2,13 @@ import AVFoundation
 import ExpoModulesCore
 
 /**
- * AudioEngineManager - Manages AVAudioEngine for real-time audio capture with Opus 1.6 DRED
+ * AudioEngineManager - Manages AVAudioEngine for real-time audio capture with Opus 1.6.1 DRED
  *
  * This class handles:
  * - Audio session configuration
  * - AVAudioEngine setup and lifecycle
  * - Real-time PCM audio capture
- * - Opus 1.6 encoding with DRED support
+ * - Opus 1.6.1 encoding with DRED support
  * - Audio interruption handling
  * - Microphone permission management
  */

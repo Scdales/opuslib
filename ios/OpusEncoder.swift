@@ -1,9 +1,9 @@
 import Foundation
 
 /**
- * OpusEncoder - Swift wrapper for Opus 1.6 with DRED support
+ * OpusEncoder - Swift wrapper for Opus 1.6.1 with DRED support
  *
- * This class provides a Swift interface to the Opus 1.6 C library for
+ * This class provides a Swift interface to the Opus 1.6.1 C library for
  * encoding PCM audio to Opus format with Deep Redundancy (DRED) support.
  *
  * DRED (Deep Redundancy) embeds up to 1 second of recovery data in packet
@@ -14,7 +14,7 @@ import Foundation
  * - Low latency encoding (20ms frame sizes)
  * - Excellent compression (6-12x vs PCM)
  * - Optimized for speech (VOIP application mode)
- * - DRED packet loss concealment (Opus 1.6 feature)
+ * - DRED packet loss concealment (Opus 1.6.1 feature)
  * - Configurable bitrate, VBR, complexity, FEC, DTX
  */
 class OpusEncoder {
@@ -32,7 +32,7 @@ class OpusEncoder {
   private let maxPacketSize = 4000 // bytes
 
   /**
-   * Initialize Opus 1.6 encoder with DRED support
+   * Initialize Opus 1.6.1 encoder with DRED support
    *
    * @param sampleRate: Sample rate in Hz (8000, 12000, 16000, 24000, 48000)
    * @param channels: Number of channels (1 = mono, 2 = stereo)
@@ -125,7 +125,7 @@ class OpusEncoder {
       print("[OpusEncoder] Warning: Failed to set DTX (error \(result))")
     }
 
-    // Enable DRED (Opus 1.6 feature)
+    // Enable DRED (Opus 1.6.1 feature)
     if dredDurationMs > 0 {
       result = Int32(OpusCtlHelpers.setDredDuration(encoderPtr, durationMs: Int32(dredDurationMs)))
       if result != OPUS_OK {

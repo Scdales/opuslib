@@ -11,7 +11,7 @@ import type {
 /**
  * Opuslib Native Module Interface
  *
- * Provides native audio capture and Opus 1.6 encoding with DRED support
+ * Provides native audio capture and Opus 1.6.1 encoding with DRED support
  */
 declare class OpuslibModuleType extends NativeModule {
   /**
@@ -43,9 +43,9 @@ const OpuslibModule = requireNativeModule<OpuslibModuleType>('Opuslib')
 const emitter = new EventEmitter(OpuslibModule as any)
 
 /**
- * Opuslib - Opus 1.6 Audio Encoding with DRED Support
+ * Opuslib - Opus 1.6.1 Audio Encoding with DRED Support
  *
- * This module provides real-time audio capture and Opus 1.6 encoding
+ * This module provides real-time audio capture and Opus 1.6.1 encoding
  * with Deep Redundancy (DRED) for improved quality on lossy networks.
  */
 export default {
