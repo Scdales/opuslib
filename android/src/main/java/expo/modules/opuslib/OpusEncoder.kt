@@ -35,6 +35,14 @@ class OpusEncoder(
   val frameSize: Int = (sampleRate * frameSizeMs / 1000.0).toInt()
   private var encoderPtr: Long = 0
 
+  /**
+   * Encoder lookahead (pre-skip) in samples. Decoders should skip this many
+   * samples at the start of the stream to account for the encoder's
+   * algorithmic delay.
+   */
+  var preSkip: Int = 0
+    private set
+
   init {
     // Create native encoder
     encoderPtr = nativeCreate(sampleRate, channels, bitrate, dredDurationMs)
@@ -42,12 +50,16 @@ class OpusEncoder(
       throw RuntimeException("Failed to create Opus encoder")
     }
 
+    // Read encoder lookahead (pre-skip)
+    preSkip = nativeGetLookahead(encoderPtr)
+
     Log.i(TAG, """
       Opus encoder initialized:
         - Sample rate: ${sampleRate}Hz
         - Channels: $channels
         - Bitrate: ${bitrate / 1000}kbps
         - Frame size: $frameSize samples (${frameSizeMs}ms)
+        - Pre-skip: $preSkip samples
         - DRED: ${dredDurationMs}ms
     """.trimIndent())
   }
@@ -100,4 +112,6 @@ class OpusEncoder(
   ): ByteArray?
 
   private external fun nativeDestroy(encoderPtr: Long)
+
+  private external fun nativeGetLookahead(encoderPtr: Long): Int
 }

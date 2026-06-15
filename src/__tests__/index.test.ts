@@ -23,6 +23,8 @@ describe('package entry point', () => {
     expect(typeof Opuslib.resumeStreaming).toBe('function')
     expect(typeof Opuslib.addListener).toBe('function')
     expect(typeof Opuslib.addAmplitudeListener).toBe('function')
+    expect(typeof Opuslib.addAudioStartedListener).toBe('function')
+    expect(typeof Opuslib.addAudioEndListener).toBe('function')
     expect(typeof Opuslib.addErrorListener).toBe('function')
   })
 })
