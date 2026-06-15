@@ -166,7 +166,12 @@ Format:
 
 ## Testing
 
-While we don't currently have automated tests, please manually test your changes:
+Run the unit suite with `npm test`. It covers the JavaScript/TypeScript wrapper
+(`src/`) — method delegation to the native module, event subscription routing,
+and the web stub. The native encoders (Swift/Kotlin/C) cannot run under Jest, so
+they still require manual on-device testing.
+
+When changing native code, please also manually test:
 
 - **Both platforms:** Test on iOS and Android
 - **Multiple devices:** Test on different device models if possible

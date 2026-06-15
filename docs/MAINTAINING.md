@@ -89,10 +89,17 @@ npm run open:android
 cd android && ./gradlew clean && rm -rf .cxx build
 ```
 
-There is no automated test suite. **Manual verification on both physical iOS and
-Android devices is the release gate** — check capture starts, `audioChunk`
-packets arrive with incrementing `sequenceNumber`, pause/resume work, and
-permission-denied paths emit an `error` event rather than crashing.
+`npm test` runs a Jest unit suite (`src/__tests__/`) over the JS/TS wrapper —
+native-module delegation, event-subscription routing, and the web stub. It runs
+under the `jest-expo/ios` preset (native platform resolution) with `expo`
+mocked, so no native binary or device is required; config lives in
+`jest.config.js` + `babel.config.js`.
+
+The native encoders (Swift/Kotlin/C) cannot run under Jest, so **manual
+verification on both physical iOS and Android devices remains the release gate
+for native changes** — check capture starts, `audioChunk` packets arrive with
+incrementing `sequenceNumber`, pause/resume work, and permission-denied paths
+emit an `error` event rather than crashing.
 
 ## What gets published vs. what doesn't
 
