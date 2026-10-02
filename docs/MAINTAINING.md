@@ -101,6 +101,15 @@ for native changes** — check capture starts, `audioChunk` packets arrive with
 incrementing `sequenceNumber`, pause/resume work, and permission-denied paths
 emit an `error` event rather than crashing.
 
+For Android linker changes, build `opuslib-jni` with the app's supported NDK
+for `arm64-v8a` and `x86_64`. Then run
+`python3 scripts/check-android-jni-alignment.py` on both built `.so` files.
+The check reads the actual ELF program headers and fails if any 64-bit LOAD
+segment is aligned below 16 KB. NDK r27 requires the target link flags in
+`android/src/main/cpp/CMakeLists.txt`; NDK r28 and later align to 16 KB by
+default. Also verify that the consuming app packages all supported ABIs and
+that its generated APKs are zip-aligned.
+
 ## What gets published vs. what doesn't
 
 `.npmignore` controls the npm tarball. The published package deliberately
@@ -112,6 +121,7 @@ It deliberately **excludes**:
 - `example/` — the local test app
 - `docs/` — internal/maintainer material
 - all top-level hidden directories (`/.*/`), tarballs, test dirs, babel config
+- maintainer-only native artifact checks in `scripts/`
 
 Always run `npm pack --dry-run` before publishing and read the file list. The
 vendored Opus tree is large; confirm nothing unexpected (or anything from the

@@ -23,6 +23,15 @@ add_library(
   opus_jni_wrapper.cpp
 )
 
+# NDK r27 and older default to 4 KB ELF LOAD alignment. Apply the Android
+# 16 KB page-size flags to the published JNI target, not the consuming app.
+target_link_options(
+  opuslib-jni
+  PRIVATE
+  "-Wl,-z,max-page-size=16384"
+  "-Wl,-z,common-page-size=16384"
+)
+
 # Link libraries
 target_link_libraries(
   opuslib-jni

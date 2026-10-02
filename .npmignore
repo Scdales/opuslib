@@ -16,4 +16,5 @@ __tests__
 
 # Internal / maintainer-only material — not for the published package
 /docs/
+/scripts/
 /CLAUDE.md
