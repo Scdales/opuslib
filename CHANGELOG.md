@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 follows [Semantic Versioning](https://semver.org/).
 
+## [0.2.1]
+
+### Fixed
+
+- Align Android `libopuslib-jni.so` ELF load segments to 16 KB when built with
+  NDK r27 or older. Consuming apps no longer need a linker override for this
+  library. Encoding and audio transport are unchanged.
+
 ## [0.2.0]
 
 This release is **fully backward compatible** — everything below is additive.

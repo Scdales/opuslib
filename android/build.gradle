@@ -1,7 +1,7 @@
 apply plugin: 'com.android.library'
 
 group = 'expo.modules.opuslib'
-version = '0.1.0'
+version = '0.2.1'
 
 def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
 apply from: expoModulesCorePlugin
@@ -34,8 +34,8 @@ if (useManagedAndroidSdkVersions) {
 android {
   namespace "expo.modules.opuslib"
   defaultConfig {
-    versionCode 1
-    versionName "0.1.0"
+    versionCode 201
+    versionName "0.2.1"
 
     // CMake configuration for Opus 1.6.1
     // Note: DRED disabled for Android due to architecture-specific DNN code
